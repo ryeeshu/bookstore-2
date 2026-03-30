@@ -3,6 +3,7 @@ package edu.cmu.bookstore.controller;
 import edu.cmu.bookstore.exception.BadRequestException;
 import edu.cmu.bookstore.util.ForwardingClient;
 import edu.cmu.bookstore.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -76,12 +77,18 @@ public class WebBffController {
     }
 
     @GetMapping("/customers")
-    public ResponseEntity<String> getCustomerByUserId(@RequestParam("userId") String userId,
+    public ResponseEntity<String> getCustomerByUserId(HttpServletRequest request,
                                                       @RequestHeader(value = "X-Client-Type", required = false) String clientType,
                                                       @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.get("/customers?userId=" + URLEncoder.encode(userId, StandardCharsets.UTF_8));
+
+        String rawQuery = request.getQueryString();
+        if (rawQuery == null || rawQuery.isBlank()) {
+            throw new BadRequestException("Missing required query parameter: userId");
+        }
+
+        return forwardingClient.get("/customers?" + rawQuery);
     }
 
     private void requireWebClient(String clientType) {
