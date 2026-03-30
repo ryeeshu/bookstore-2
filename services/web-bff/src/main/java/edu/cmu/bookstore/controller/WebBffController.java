@@ -6,6 +6,9 @@ import edu.cmu.bookstore.util.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 @RestController
 public class WebBffController {
 
@@ -33,7 +36,7 @@ public class WebBffController {
                                              @RequestBody(required = false) String body) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.put("/books/" + isbn, body);
+        return forwardingClient.put("/books/" + encodePathSegment(isbn), body);
     }
 
     @GetMapping("/books/{isbn}")
@@ -42,7 +45,7 @@ public class WebBffController {
                                           @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.get("/books/" + isbn);
+        return forwardingClient.get("/books/" + encodePathSegment(isbn));
     }
 
     @GetMapping("/books/isbn/{isbn}")
@@ -51,7 +54,7 @@ public class WebBffController {
                                              @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.get("/books/isbn/" + isbn);
+        return forwardingClient.get("/books/isbn/" + encodePathSegment(isbn));
     }
 
     @PostMapping("/customers")
@@ -69,7 +72,7 @@ public class WebBffController {
                                                   @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.get("/customers/" + id);
+        return forwardingClient.get("/customers/" + encodePathSegment(id));
     }
 
     @GetMapping("/customers")
@@ -78,15 +81,22 @@ public class WebBffController {
                                                       @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireWebClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.get("/customers?userId=" + userId);
+        return forwardingClient.get("/customers?userId=" + URLEncoder.encode(userId, StandardCharsets.UTF_8));
     }
 
     private void requireWebClient(String clientType) {
-        if (clientType == null || clientType.isBlank()) {
+        if (clientType == null || clientType.trim().isEmpty()) {
             throw new BadRequestException("Missing X-Client-Type header.");
         }
-        if (!"Web".equals(clientType)) {
+
+        String normalized = clientType.trim();
+        if (!normalized.equalsIgnoreCase("Web")) {
             throw new BadRequestException("Invalid X-Client-Type header.");
         }
+    }
+
+    private String encodePathSegment(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
+                .replace("+", "%20");
     }
 }

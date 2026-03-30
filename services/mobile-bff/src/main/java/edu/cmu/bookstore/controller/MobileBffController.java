@@ -10,6 +10,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 @RestController
 public class MobileBffController {
 
@@ -38,7 +41,7 @@ public class MobileBffController {
                                              @RequestBody(required = false) String body) {
         requireMobileClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        return forwardingClient.put("/books/" + isbn, body);
+        return forwardingClient.put("/books/" + encodePathSegment(isbn), body);
     }
 
     @GetMapping("/books/{isbn}")
@@ -47,7 +50,7 @@ public class MobileBffController {
                                           @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireMobileClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        ResponseEntity<String> upstream = forwardingClient.get("/books/" + isbn);
+        ResponseEntity<String> upstream = forwardingClient.get("/books/" + encodePathSegment(isbn));
         return transformBookResponse(upstream);
     }
 
@@ -57,7 +60,7 @@ public class MobileBffController {
                                              @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireMobileClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        ResponseEntity<String> upstream = forwardingClient.get("/books/isbn/" + isbn);
+        ResponseEntity<String> upstream = forwardingClient.get("/books/isbn/" + encodePathSegment(isbn));
         return transformBookResponse(upstream);
     }
 
@@ -76,7 +79,7 @@ public class MobileBffController {
                                                   @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireMobileClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        ResponseEntity<String> upstream = forwardingClient.get("/customers/" + id);
+        ResponseEntity<String> upstream = forwardingClient.get("/customers/" + encodePathSegment(id));
         return transformCustomerResponse(upstream);
     }
 
@@ -86,15 +89,17 @@ public class MobileBffController {
                                                       @RequestHeader(value = "Authorization", required = false) String authorization) {
         requireMobileClient(clientType);
         jwtUtil.validateAuthorizationHeader(authorization);
-        ResponseEntity<String> upstream = forwardingClient.get("/customers?userId=" + userId);
+        ResponseEntity<String> upstream = forwardingClient.get("/customers?userId=" + URLEncoder.encode(userId, StandardCharsets.UTF_8));
         return transformCustomerResponse(upstream);
     }
 
     private void requireMobileClient(String clientType) {
-        if (clientType == null || clientType.isBlank()) {
+        if (clientType == null || clientType.trim().isEmpty()) {
             throw new BadRequestException("Missing X-Client-Type header.");
         }
-        if (!"iOS".equals(clientType) && !"Android".equals(clientType)) {
+
+        String normalized = clientType.trim();
+        if (!normalized.equalsIgnoreCase("iOS") && !normalized.equalsIgnoreCase("Android")) {
             throw new BadRequestException("Invalid X-Client-Type header.");
         }
     }
@@ -111,9 +116,9 @@ public class MobileBffController {
                 if (genreNode != null && genreNode.isTextual() && "non-fiction".equals(genreNode.asText())) {
                     objectNode.put("genre", 3);
                 }
+
                 return ResponseEntity.status(upstream.getStatusCode())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .headers(upstream.getHeaders())
                         .body(objectMapper.writeValueAsString(objectNode));
             }
             return upstream;
@@ -138,12 +143,16 @@ public class MobileBffController {
 
                 return ResponseEntity.status(upstream.getStatusCode())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .headers(upstream.getHeaders())
                         .body(objectMapper.writeValueAsString(objectNode));
             }
             return upstream;
         } catch (Exception ex) {
             return upstream;
         }
+    }
+
+    private String encodePathSegment(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
+                .replace("+", "%20");
     }
 }
