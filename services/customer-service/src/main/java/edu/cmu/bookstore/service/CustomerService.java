@@ -8,53 +8,23 @@ import edu.cmu.bookstore.repository.CustomerRepository;
 import edu.cmu.bookstore.validation.CustomerValidator;
 import org.springframework.stereotype.Service;
 
-/**
- * Service class responsible for customer-related business logic.
- *
- * This class coordinates request validation and repository access
- * for customer creation and retrieval operations.
- */
 @Service
 public class CustomerService {
 
-    /**
-     * Repository used for customer persistence operations.
-     */
     private final CustomerRepository customerRepository;
-
-    /**
-     * Validator used to enforce request and input constraints.
-     */
     private final CustomerValidator customerValidator;
 
-    /**
-     * Constructs the service with its required dependencies.
-     *
-     * @param customerRepository repository used for customer persistence
-     * @param customerValidator validator used for request checking
-     */
     public CustomerService(CustomerRepository customerRepository,
                            CustomerValidator customerValidator) {
         this.customerRepository = customerRepository;
         this.customerValidator = customerValidator;
     }
 
-    /**
-     * Creates a new customer after validating the request and checking for conflicts.
-     *
-     * If a customer with the same user ID already exists, a conflict exception
-     * is thrown. On success, the generated database identifier is assigned to
-     * the returned customer object.
-     *
-     * @param request request payload containing customer data
-     * @return created customer object
-     */
     public Customer createCustomer(CreateCustomerRequest request) {
         customerValidator.validateCreateRequest(request);
 
         String trimmedUserId = request.getUserId().trim();
 
-        // Prevent duplicate customer creation for the same user identifier.
         if (customerRepository.existsByUserId(trimmedUserId)) {
             throw new ConflictException("This user ID already exists in the system.");
         }
@@ -75,12 +45,6 @@ public class CustomerService {
         return customer;
     }
 
-    /**
-     * Retrieves a customer by internal numeric identifier.
-     *
-     * @param id internal identifier of the requested customer
-     * @return matching customer object
-     */
     public Customer getCustomerById(Long id) {
         customerValidator.validateCustomerId(id);
 
@@ -88,16 +52,20 @@ public class CustomerService {
                 .orElseThrow(() -> new NotFoundException("Customer not found."));
     }
 
-    /**
-     * Retrieves a customer by user identifier.
-     *
-     * @param userId user identifier associated with the requested customer
-     * @return matching customer object
-     */
     public Customer getCustomerByUserId(String userId) {
-        customerValidator.validateUserIdQuery(userId);
+        String normalizedUserId = normalizeUserId(userId);
 
-        return customerRepository.findByUserId(userId.trim())
+        customerValidator.validateUserIdQuery(normalizedUserId);
+
+        return customerRepository.findByUserId(normalizedUserId)
                 .orElseThrow(() -> new NotFoundException("Customer not found."));
+    }
+
+    private String normalizeUserId(String userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        return userId.trim().replace(' ', '+');
     }
 }
