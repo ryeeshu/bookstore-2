@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
+
 @Component
 public class ForwardingClient {
 
@@ -31,7 +33,7 @@ public class ForwardingClient {
     }
 
     private ResponseEntity<String> exchange(String path, HttpMethod method, String body) {
-        String url = backendBaseUrl + path;
+        URI uri = URI.create(backendBaseUrl + path);
 
         HttpHeaders headers = new HttpHeaders();
         if (body != null) {
@@ -41,7 +43,7 @@ public class ForwardingClient {
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, method, entity, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(uri, method, entity, String.class);
             return ResponseEntity.status(response.getStatusCode())
                     .headers(copyResponseHeaders(response.getHeaders()))
                     .body(response.getBody());
